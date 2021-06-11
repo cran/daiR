@@ -1,0 +1,291 @@
+---
+title: "Correcting text output from Google Document AI"
+author: "Thomas Hegghammer"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Correcting text output from Google Document AI}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+options(rmarkdown.html_vignette.check_title = FALSE)
+library(knitr)
+opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+**Last updated 4 April 2021**
+\
+\
+\
+
+Google Document AI (DAI) has excellent character recognition, but often reads columns wrong. This vignette will show you how to identify and reorder jumbled text with the tools in the `daiR` package.  
+
+## The problem
+
+Server-based OCR engines such as Google Document AI and Amazon Textract represent a major advance in OCR technology. They handle visual noise extremely well and effectively eliminate the need for image preprocessing, the most agonizing part of OCR in `tesseract` and other standalone libraries. DAI also reads non-Western languages such as Arabic better than any other general engine I have seen. 
+
+But DAI and Textract still struggle with text columns and irregular page layouts. In my experience, DAI will misread a multi-column page about half the time, and the error rate increases with the complexity of the layout. This is not a problem if you plan to apply "bag-of-words" text mining techniques, but if you're looking at Natural Language Processing or actually reading the text, you cannot trust Document AI or Textract to always return accurate text. 
+
+DAI column-reading errors are of two main types. The first is to put text blocks in the wrong order, and the second is to merge blocks that shouldn't be merged. Both errors can be corrected programmatically with the tools in the `daiR` package.    
+
+## Reordering blocks
+
+To illustrate, let's feed DAI a simple two-column text. This one is from the CIA's archive of declassified intelligence documents: 
+
+```{r, message=FALSE, eval=FALSE}
+dest_path <- file.path(tempdir(), "CIA_columns.pdf")
+download.file("https://www.cia.gov/readingroom/docs/1968-03-08.pdf", 
+              destfile = dest_path, 
+              mode = "wb")
+```
+
+```{r, echo=FALSE, out.width = "50%"}
+include_graphics("CIA_columns.jpg")
+```
+
+We start by uploading it to Google Storage and passing it to Document AI.  
+
+```{r, echo=FALSE}
+library(daiR)
+suppressMessages(library(googleCloudStorageR))
+```
+
+```{r, eval=FALSE}
+library(daiR)
+library(googleCloudStorageR)
+```
+
+```{r, eval=FALSE}
+resp <- gcs_upload(dest_path)
+resp <- dai_async("CIA_columns.pdf")
+```
+
+Note that this code assumes you have set `GCS_AUTH_FILE` and `GCS_DEFAULT_BUCKET` variables in your .Renviron file (see the [two](https://dair.info/articles/setting_up_google_storage.html) [previous](https://dair.info/articles/using_document_ai.html) vignettes for details).
+
+We check our bucket for the json output and download it when it's ready:
+
+```{r, echo=FALSE, eval=FALSE}
+content <- gcs_list_objects()
+count <- 0
+while (count < 150 && nrow(content) < 2){
+  Sys.sleep(2)
+  content <- gcs_list_objects()
+  count <- count + 1
+}
+```
+
+```{r, eval=FALSE}
+gcs_list_objects()
+
+## NOT RUN
+our_file <- "<job_number>/0/CIA_columns-0.json"
+```
+
+```{r, eval=FALSE}
+dest_path2 <- file.path(tempdir(), "CIA_columns.json")
+gcs_get_object(our_file, saveToDisk = dest_path2)
+```
+
+
+Finally we extract the text:
+
+```{r, eval=FALSE}
+text <- text_from_dai_file(dest_path2)
+cat(text)
+```
+
+On first inspection, this does not look so bad. But notice the transition from the first to the second paragraph: 
+
+> ... they might reduce public support for the new Dubcek administration. Czech consumer in connection with these price increases.
+
+Something's not right. Could it be a column-reading error?
+
+We can find out with the function `draw_blocks()`, which extracts boundary box data from the `.json` file and draws numbered rectangles on an image of each page of the source document. (The images come from the json file, where they are stored as base64-encoded strings.) 
+
+```{r, eval=FALSE}
+draw_blocks(dest_path2, dir = tempdir())
+```
+
+Check your temporary directory (type `tempdir()` for the path) for a file ending in `_blocks.png` and pull it up:
+
+```{r, echo=FALSE, out.width = "50%"}
+include_graphics("CIA_columns1_blocks.png")
+```
+
+We can immediately see that the blocks are in the wrong order. How to fix this?
+
+Fortunately, the `.json` file from DAI comes with a ton of data that allow us to programmatically reorder the text. The key is to generate a token dataframe with page location data and then filter and reorder as necessary. We create the dataframe with `build_token_df()`:
+
+```{r, eval=FALSE}
+token_df <- build_token_df(dest_path2)
+str(token_df)
+```
+
+The dataframe has the words in the order in which DAI proposes to read them, and the `block` column has the number of the block to which each word belongs. This allows us to reorder the blocks while keeping the within-block word order intact. 
+
+We see from the annotated image that the real order of the blocks should be 1 - 2 - 3 - 5 - 7 - 4 - 6. We can store this in a vector that we use to reorder the dataframe. 
+
+```{r, eval=FALSE}
+order <- c(1, 2, 3, 5, 7, 4, 6)
+token_df$block <- factor(token_df$block, levels = order)
+token_df_correct <- token_df[order(token_df$block),]
+```
+
+We get the correct text from the `token_df_correct$token` column:
+
+```{r, message = FALSE, warning = FALSE, eval=FALSE}
+library(dplyr)
+text <- token_df_correct$token %>% 
+  paste(collapse="")
+```
+
+Now the transition from the first to the second paragraph makes more sense:
+
+```{r, eval=FALSE}
+snippet <- substr(text, start = 1, stop = 700)
+cat(snippet)
+```
+
+## Splitting blocks
+
+A more complex --- and, unfortunately, more common --- situation is when DAI fails to distinguish between columns. This means that lines do not end where they should, resulting in long stretches of incomprehensible text. We can illustrate this with an article about the great [Peshtigo forest fire](https://en.wikipedia.org/wiki/Peshtigo_fire) in Wisconsin in 1871, available on the Internet Archive.
+
+```{r, echo=FALSE, out.width = "50%"}
+include_graphics("peshtigo.jpg")
+```
+
+We do our processing routine again:
+
+```{r, eval=FALSE}
+dest_path3 <- file.path(tempdir(), "peshtigo.pdf")
+download.file("https://archive.org/download/themarinetteandpeshtigoeagleoct141871/The%20Marinette%20and%20Peshtigo%20Eagle%20-%20Oct%2014%201871.pdf", 
+              destfile = dest_path3, 
+              mode = "wb")
+resp <- gcs_upload(dest_path3)
+resp <- dai_async("peshtigo.pdf")
+```
+
+```{r, eval=FALSE}
+# wait till ready
+gcs_list_objects()
+
+## NOT RUN
+our_file <- "<job_number>/0/peshtigo-0.json"
+```
+
+```{r, eval=FALSE}
+dest_path4 <- file.path(tempdir(), "peshtigo.json")
+gcs_get_object(our_file, 
+               saveToDisk = dest_path4)
+```
+
+
+This time we'll skip the text printout and go straight to inspecting the boundary boxes:
+
+```{r, eval=FALSE}
+draw_blocks(dest_path4, dir = tempdir())
+```
+
+```{r, echo=FALSE, out.width = "50%"}
+include_graphics("peshtigo1_blocks.png")
+```
+
+As we can see, this time DAI has failed to distinguish between the two main columns. We can verify this by checking the beginning of the text:
+
+```{r, eval=FALSE}
+text <- text_from_dai_file(dest_path4)
+snippet <- substr(text, start = 1, stop = 1000)
+cat(snippet)
+```
+This means that we must find a way of splitting block 12 vertically. 
+
+What we will do is create a new boundary box that captures only the right-hand column. Then we will feed the location coordinates of the new box back into the token dataframe so that the tokens that fall within it are assigned a new block number. We can then reorder the blocks as we did in the previous example.
+
+There are two main ways to obtain the coordinates of a new block: mathematically or through image annotation.
+
+### Mathematical splitting
+
+We can split blocks mathematically by using the location data for existing blocks in the json file. We start by building a block dataframe to keep track of the blocks. 
+
+```{r, eval=FALSE}
+block_df <- build_block_df(dest_path4)
+```
+
+Then we use the function `split_block()` to cut block 12 vertically in half. This function takes as input a block dataframe, the page and number of the block to split, and a parameter `cut_point`, which is a number from 1 to 99 for the relative location of the cut point. `split_block()` returns a new block dataframe that includes the new block and revised coordinates for the old one. 
+
+```{r, eval=FALSE}
+new_block_df <- split_block(block_df, block = 12, cut_point = 50)
+```
+
+If we had more blocks to split, we could repeat the procedure as many times as necessary. We just have to make sure to feed the latest version of the block dataframe into the `split_block()` function. 
+
+When we have a block dataframe that captures the layout fairly accurately, we can use the `reassign_tokens()` function to assign new block values to the words in the *token* dataframe. `reassign_tokens()` takes as input the token dataframe and the new block dataframe and returns a revised token dataframe.
+
+```{r, eval=FALSE}
+token_df <- build_token_df(dest_path4)
+token_df_correct <- reassign_tokens(token_df, new_block_df)  
+```
+
+In this particular case, the blocks are in the right order after splitting, so we can extract a correct text right away. In other cases the blocks may need reordering, in which case we use the procedure from the previous section.  
+
+```{r, eval=FALSE}
+text <- token_df_correct$token %>% 
+  paste(collapse="")
+snippet <- substr(text, start = 1, stop = 1000)
+cat(snippet)
+```
+
+Mathematical splitting will often be the easiest method, and it can be particularly efficient when you have a lot of documents with the exact same column structure. However, it may sometimes be difficult to tell with the naked eye where the cut point should be. At other times the space between columns may be so narrow as to make precision important. For these situations we can use manual image annotation. 
+
+### Manual splitting
+
+In principle you can use any image annotation tool, so long as you format the resulting coordinates in a way that `daiR`'s processing functions understand. In the following, I will use [labelme](https://github.com/wkentaro/labelme) because it's easy to use and `daiR` has a helper function for it.
+
+Labelme opens from the command line, but has a fairly intuitive graphical user interface. We load the annotated image generated by `draw_blocks()`, click "create polygons" in the left pane, right-click while the cursor is in the page pane, and choose "create rectangle". 
+
+```{r, echo=FALSE, out.width = "50%"}
+include_graphics("labelme1.png")
+```
+
+Then we mark the right-hand column and label it 13 (for the number of the new block).
+
+```{r, echo=FALSE, out.width = "50%"}
+include_graphics("labelme2.png")
+```
+
+Click "save" and store the json file, for example as `peshtigo1_blocks.json`. Now we can load it in R and get the coordinates of the new block 13 with the function `from_labelme()`. This function returns a one-row dataframe formatted like block dataframes generated with `build_block_df`.
+
+```{r, eval=FALSE}
+block13 <- from_labelme("peshtigo1_blocks.json")
+```
+
+We can then assign a new block number to the tokens that fall within block13. For this we use `reassign_tokens2()`, which reassigns tokens on a specified page according to the coordinates of a single new block. 
+
+```{r, eval=FALSE}
+token_df_new <- reassign_tokens2(token_df, block13) 
+```
+
+Now we just need to reorder the token data frame by blocks, and the words will be in the right order. In this particular case, we do not need to supply a custom block order, since the block numbering reflects the right order of the text.
+
+```{r, eval=FALSE}
+token_df_correct <- token_df_new[order(token_df_new$block), ]
+```
+
+And again we have a text in the right order. 
+
+```{r, eval=FALSE}
+text <- token_df_correct$token %>% 
+  paste(collapse="")
+snippet <- substr(text, start = 1, stop = 1000)
+cat(snippet)
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+#cleanup
+contents <- gcs_list_objects()
+map(contents$name, gcs_delete_object)
+```

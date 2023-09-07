@@ -27,9 +27,9 @@ dai_auth <- function(path = Sys.getenv("GCS_AUTH_FILE"),
   }
 
   if (inherits(token, "Token2.0")) {
-    message("Access token available.")
+    packageStartupMessage("Access token available.")
   } else {
-    message("Access token not available. Have you provided a valid service account key file?")
+    packageStartupMessage("Access token not available. Have you provided a valid service account key file?")
   }
 }
 
@@ -98,7 +98,7 @@ dai_user <- function() {
 
 get_project_id <- function(path = Sys.getenv("GCS_AUTH_FILE")) {
 
-  if (!(length(path) == 1 && is.character(path)) || path == ""){
+  if (!(length(path) == 1 && is.character(path)) || path == "") {
     stop("Error: invalid path parameter.")
     }
 

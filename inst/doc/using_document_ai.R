@@ -10,14 +10,13 @@ opts_chunk$set(
 #  library(daiR)
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  dest_path <- file.path(tempdir(), "CIA.pdf")
+#  setwd(tempdir())
 #  download.file("https://www.cia.gov/readingroom/docs/AGH%2C%20LASLO_0011.pdf",
-#                destfile = dest_path,
+#                destfile = "CIA.pdf",
 #                mode = "wb")
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  
-#  response1 <- dai_sync(dest_path)
+#  response1 <- dai_sync("CIA.pdf")
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  text <- text_from_dai_response(response1)
@@ -25,7 +24,7 @@ opts_chunk$set(
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  library(googleCloudStorageR)
-#  gcs_upload(dest_path)
+#  gcs_upload("CIA.pdf")
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  gcs_list_objects()
@@ -44,13 +43,10 @@ opts_chunk$set(
 our_file <- "<job_number>/0/CIA-0.json"
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  dest_path2 <- file.path(tempdir(), "CIA.json")
-#  gcs_get_object(our_file,
-#                 saveToDisk = dest_path2,
-#                 overwrite = TRUE)
+#  gcs_get_object(our_file, saveToDisk = "CIA.json", overwrite = TRUE)
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  text <- text_from_dai_file(dest_path2)
+#  text <- text_from_dai_file("CIA.json")
 #  cat(text)
 
 ## ---- eval=FALSE--------------------------------------------------------------

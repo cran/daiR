@@ -59,9 +59,7 @@ is_pdf <- function(file) {
 
   result <- suppressMessages(try(pdftools::pdf_info(file), silent = TRUE))
 
-  if (class(result) != "try-error") return(TRUE)
-
-  return(FALSE)
+  return(!(inherits(result, "try-error")))
 }
 
 #' Check that a file is JSON
@@ -80,10 +78,30 @@ is_json <- function(file) {
 
   result <- suppressMessages(try(jsonlite::fromJSON(file), silent = TRUE))
 
-  if (class(result) != "try-error") return(TRUE)
+  return(!(inherits(result, "try-error")))
 
-  return(FALSE)
 }
+
+#' Check that a string is a valid colour representation
+#'
+#' @description Checks whether a string is a valid colour representation.
+#' @param x a string
+#' @return a boolean
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' is_colour("red")
+#' is_colour("#12345")
+#' }
+
+is_colour <- function(x) {
+
+  result <- suppressMessages(try(grDevices::col2rgb(x), silent = TRUE))
+
+  return(!(inherits(result, "try-error")))
+
+ }
 
 #' PDF to base64 tiff
 #'
@@ -139,7 +157,11 @@ img_to_binbase <- function(file) {
 
   filepath <- file.path(tempdir(), "dai_temp.tiff")
 
-  magick::image_write(img_gray, filepath, format = "tiff", compression = "JPEG")
+  magick::image_write(img_gray, 
+                      filepath, 
+                      format = "tiff", 
+                      #compression = "JPEG"
+                      )
 
   enc <- base64enc::base64encode(filepath)
 

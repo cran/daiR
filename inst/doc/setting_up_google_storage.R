@@ -48,9 +48,9 @@ library(googleCloudStorageR)
 #  gcs_list_objects()
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  sample_csv <- file.path(tempdir(), "mtcars.csv")
-#  write.csv(mtcars, sample_csv)
-#  resp <- gcs_upload(sample_csv, name = "mtcars.csv")
+#  setwd(tempdir())
+#  write.csv(mtcars, "mtcars.csv")
+#  resp <- gcs_upload("mtcars.csv")
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  contents <- gcs_list_objects()
@@ -59,9 +59,8 @@ library(googleCloudStorageR)
 ## ---- eval=FALSE--------------------------------------------------------------
 #  library(purrr)
 #  library(fs)
-#  sample_csv2 <- file.path(tempdir(), "iris.csv")
-#  write.csv(iris, sample_csv2)
-#  my_files <- dir_ls(tempdir(), glob = "*.csv")
+#  write.csv(iris, "iris.csv")
+#  my_files <- dir_ls(glob = "*.csv")
 #  resp <- map(my_files, ~ gcs_upload(.x, name = .x))
 
 ## ---- eval=FALSE--------------------------------------------------------------
@@ -72,14 +71,11 @@ library(googleCloudStorageR)
 #  gcs_upload_set_limit(upload_limit = 20000000L)
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  dest_path <- file.path(tempdir(), "mtcars_duplicate.csv")
-#  resp <- gcs_get_object("mtcars.csv", saveToDisk = dest_path)
+#  resp <- gcs_get_object("mtcars.csv", saveToDisk = "mtcars_duplicate.csv")
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  contents <- gcs_list_objects()
-#  resp <- map(contents$name, ~ gcs_get_object(.x,
-#                                              saveToDisk = file.path(tempdir(), .x),
-#                                              overwrite = TRUE))
+#  resp <- map(contents$name, ~ gcs_get_object(.x, saveToDisk = .x, overwrite = TRUE))
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  gcs_delete_object("mtcars.csv")

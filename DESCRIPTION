@@ -1,34 +1,32 @@
 Package: daiR
 Title: Interface with Google Cloud Document AI API
-Version: 0.9.0
+Version: 0.9.9
 Authors@R: 
-    person(given = "Thomas",
-           family = "Hegghammer",
-           role = c("aut", "cre"),
-           email = "hegghammer@gmail.com",
+    person("Thomas", "Hegghammer", , "hegghammer@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6253-1518"))
-Description: R interface for the Google Cloud Services 'Document AI API' 
-    <https://cloud.google.com/document-ai/> with additional tools for output file 
-    parsing and text reconstruction. 'Document AI' is a powerful server-based 
-    OCR processor that extracts text and tables from images and pdf files with 
-    high accuracy. 'daiR' gives R users programmatic access to this processor and 
-    additional tools to handle and visualize the output. See the package website 
-    <https://dair.info/> for more information and examples.
-Depends: R (>= 3.1.0)
+Description: R interface for the Google Cloud Services 'Document AI API'
+    <https://cloud.google.com/document-ai/> with additional tools for
+    output file parsing and text reconstruction. 'Document AI' is a
+    powerful server-based OCR processor that extracts text and tables from
+    images and PDF files with high accuracy. 'daiR' gives R users
+    programmatic access to this processor and additional tools to handle
+    and visualize the output. See the package website <https://dair.info/>
+    for more information and examples.
 License: MIT + file LICENSE
-Encoding: UTF-8
-RoxygenNote: 7.1.1
-Imports: base64enc, curl, fs, gargle, glue, googleCloudStorageR,
-        grDevices, httr, jsonlite, magick, pdftools, purrr, stringr
-Suggests: covr, dplyr, knitr, ngram, qpdf, rmarkdown, sodium, testthat
-        (>= 3.0.0), usethis, utils
-VignetteBuilder: knitr
 URL: https://github.com/Hegghammer/daiR, https://dair.info
 BugReports: https://github.com/Hegghammer/daiR/issues
+Depends: R (>= 4.2.0)
+Imports: base64enc, beepr, data.table, fs, gargle, glue,
+        googleCloudStorageR, graphics, grDevices, httr, jsonlite,
+        magick, pdftools, purrr, readtext, stats, stringr, utils, xml2
+Suggests: knitr, ngram, rmarkdown, testthat (>= 3.1.10)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
+Encoding: UTF-8
+RoxygenNote: 7.2.3
 NeedsCompilation: no
-Packaged: 2021-06-10 13:43:12 UTC; thh
+Packaged: 2023-09-07 06:50:48 UTC; thomas
 Author: Thomas Hegghammer [aut, cre] (<https://orcid.org/0000-0001-6253-1518>)
 Maintainer: Thomas Hegghammer <hegghammer@gmail.com>
 Repository: CRAN
-Date/Publication: 2021-06-11 09:20:02 UTC
+Date/Publication: 2023-09-07 07:10:13 UTC

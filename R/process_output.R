@@ -5,11 +5,14 @@
 #' order DAI proposes to read them. Columns are location variables
 #' such as page coordinates and block bounding box numbers.
 #'
-#' @param json filepath of a JSON file obtained using \code{dai_async()}
+#' @param type one of "sync" or "async" depending on
+#' the function used to process the original document.
+#' @param output either a HTTP response object (from `dai_sync()`) or
+#' the path to a JSON file (from `dai_async`).
 #' @return a token data frame
 #'
-#' @details The location variables are: start index, end index,
-#' left boundary, right boundary, top boundary, bottom boundary,
+#' @details The location variables are: token, start index, end index,
+#' confidence, left boundary, right boundary, top boundary, bottom boundary,
 #' page number, and block number. Start and end indices refer to
 #' character position in the string containing the full text.
 #'
@@ -17,137 +20,169 @@
 #'
 #' @examples
 #' \dontrun{
-#' token_df <- build_token_df("pdf_output.json")
+#' token_df <- build_token_df(type = "async", output = "pdf_output.json")
+#' resp <- dai_sync("file.pdf")
+#' token_df <- build_token_df(type = "sync", output = resp)
 #' }
 
-build_token_df <- function(json) {
+build_token_df <- function(
+                           type,
+                           output
+                           ) {
 
-  # check
-  if (!(is_json(json))){
-    stop("Input file not .json.")
+    # checks
+    if (!(length(type) == 1) || !(type %in% c("sync", "async", "sync-tab", "async-tab"))) {
+        stop("Invalid type parameter.")
     }
 
-  output_as_list <- jsonlite::fromJSON(json)
-
-  if (!("pages" %in% names(output_as_list))) {
-    stop("JSON not in right format. Is it from DAI?")
+    if (!(inherits(output, "response") || is_json(output))) {
+        stop("Invalid output parameter.")
     }
 
-  if (!("text" %in% names(output_as_list))) {
-    stop("DAI found no tokens. Was the document blank?")
-    }
+    if (type == "sync") {
 
-  # get pagewise indices
-  pages_tokens <- output_as_list$pages$tokens
+        output_sync <- httr::content(output)
+        text <- output_sync$document$text
+        pages_sync <- output_sync$document$pages
 
-  pagewise_token_indices <- purrr::map(pages_tokens, ~.x$layout$textAnchor$textSegments)
+        # get pagewise indices
+        pages_tokens_sync <- purrr::map(pages_sync, ~.x$tokens)
 
-  # extract all start indices, shifting them by one,
-  # because the token really starts at (index + 1)
-  start_ind_raw <- unlist(purrr::map(pagewise_token_indices, ~ purrr::map(.x, ~.x$startIndex)))
-  start_ind_shift <- as.integer(start_ind_raw) + 1
-  start_ind <- c(1, start_ind_shift)
+        # extract all start indices as single vector
+        start_ind <- integer()
+        for (i in pages_tokens_sync) {
+            for (j in i) {
+                ind <- as.integer(j[["layout"]][["textAnchor"]][["textSegments"]][[1]][["startIndex"]]) + 1
+                start_ind <- c(start_ind, ind)
+            }
+        }
 
-  # extract all start indices
-  end_ind <- unlist(purrr::map(pagewise_token_indices, ~ purrr::map(.x, ~.x$endIndex)))
+        # extract all end indices as single vector
+        end_ind <- integer()
+        for (i in pages_tokens_sync) {
+            for (j in i) {
+                ind <- j[["layout"]][["textAnchor"]][["textSegments"]][[1]][["endIndex"]]
+                end_ind <- c(end_ind, as.integer(ind))
+            }
+        }
 
-  # extract all tokens
-  text <- output_as_list$text
+        # get confidence scores as single vector
+        conf <- numeric()
+        for (i in pages_tokens_sync) {
+            for (j in i) {
+                con <- j$layout$confidence
+                conf <- c(conf, con)
+            }
+        }
 
-  token <- character()
+    } else if (type == "async") {
 
-  for (i in 1:length(start_ind)) {
+        output_async <- jsonlite::fromJSON(output)
 
-    tok <- substr(text,
-                  start_ind[i],
-                  end_ind[i]
-                  )
+        if (!("pages" %in% names(output_async))) {
+            stop("JSON not in right format. Is it from DAI?")
+        }
 
-    token <- c(token, tok)
+        if (!("text" %in% names(output_async))) {
+            stop("DAI found no tokens. Was the document blank?")
+        }
 
-    }
+        text <- output_async$text
 
-  # extract all boundaries
-  pagewise_token_coords <- purrr::map(pages_tokens, ~.x$layout$boundingPoly$normalizedVertices)
+        # get pagewise indices
+        pages_tokens_async <- output_async$pages$tokens
+        pagewise_token_indices_async <- purrr::map(pages_tokens_async, ~.x$layout$textAnchor$textSegments)
 
-  left <-  unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ min(.x$x))))
+        # extract all start indices as single vector, shifting them by one, because the token really starts at (index + 1)
+        start_ind <- as.integer(unlist(purrr::map(pagewise_token_indices_async, ~ purrr::map(.x, ~.x$startIndex)))) + 1
 
-  right <- unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ max(.x$x))))
+        # extract all end indices as single vector
+        end_ind <- unlist(purrr::map(pagewise_token_indices_async, ~ purrr::map(.x, ~.x$endIndex)))
 
-  top <- unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ min(.x$y))))
-
-  bottom <- unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ max(.x$y))))
-
-  # get page numbers
-  page <- list()
-
-  for (i in 1:length(pages_tokens)) {
-
-    if (is.null(pages_tokens[[i]])) {
-      instances <- 0
-      } else {
-      instances <- nrow(pages_tokens[[i]])
-      }
-
-    pg <- rep(i, each = instances)
-
-    page <- append(page, pg)
-
-    }
-
-  page <- unlist(page)
-
-  # build dataframe
-  df <- data.frame(token,
-                   start_ind,
-                   end_ind,
-                   left,
-                   right,
-                   top,
-                   bottom,
-                   page,
-                   block = NA
-                   )
-
-  # get block numbers
-
-  # first extract vector of pagewise sets of blocks
-  pages_blocks <- output_as_list$pages$blocks
-
-  pagewise_block_sets <- purrr::map(pages_blocks, ~.x$layout$boundingPoly$normalizedVertices)
-
-  # then assign block numbers by location
-
-  # loop over each page
-  for (i in 1:length(pagewise_block_sets)) {
-
-    # create temporary sub-dataframe for that page
-    df_sub <- df[df$page == i, ]
-
-    # set counter for block number
-    count = 1
-
-    #loop over blocks
-    for (j in pagewise_block_sets[[i]]) {
-
-      # assign number to token rows that fall within the box
-      df_sub$block[df_sub$right > mean(c(j$x[1], j$x[4])) &
-                     df_sub$left < mean(c(j$x[2],j$x[3])) &
-                     df_sub$bottom > mean(c(j$y[1],j$y[2])) &
-                     df_sub$top < mean(c(j$y[3],j$y[4]))] <- count
-
-      count = count + 1
-
-      }
-
-    # add the block numbers from that page to the main df
-    df$block[df$page == i] <- df_sub$block
+        # get confidence scores as single vector
+        conf <- unlist(purrr::map(pages_tokens_async, ~.x$layout$confidence))
 
     }
+    # insert implicit start index
+    start_ind <- c(1, start_ind)
 
-  return(df)
+    # get all tokens as single vector
+    token <- character()
+    for (i in seq_along(start_ind)) {
+        tok <- substr(text,
+                      start_ind[i],
+                      end_ind[i]
+        )
+        token <- c(token, tok)
+    }
 
-  }
+    # get page numbers as single vector
+    if (type == "sync") { pages_tokens <- pages_tokens_sync } else { pages_tokens <- pages_tokens_async }
+    page <- integer()
+    for (i in seq_along(pages_tokens)) {
+        if (is.null(pages_tokens[[i]])) {
+            instances <- 0
+        } else {
+            if (type == "sync") { instances <- length(pages_tokens[[i]]) }
+            else { instances <- nrow(pages_tokens[[i]])
+            }
+        }
+        pg <- rep(i, each = instances)
+        page <- c(page, pg)
+    }
+
+    # get boundaries as single vectors
+    if (type == "sync") {
+        pagewise_token_coords <- purrr::map(pages_tokens_sync, get_vertices)
+        pagewise_token_coords <- purrr::map(pagewise_token_coords, transpose_page)
+    } else { pagewise_token_coords <- purrr::map(pages_tokens_async, ~.x$layout$boundingPoly$normalizedVertices)}
+
+    left <-  unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ min(.x$x))))
+    right <- unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ max(.x$x))))
+    top <- unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ min(.x$y))))
+    bottom <- unlist(purrr::map(pagewise_token_coords, ~ purrr::map(.x, ~ max(.x$y))))
+
+    # combine all vectors to dataframe
+    df <- data.frame(token,
+                     start_ind,
+                     end_ind,
+                     conf,
+                     left,
+                     right,
+                     top,
+                     bottom,
+                     page,
+                     block = NA
+                    )
+
+    # get block numbers, assigning by token location
+    if (type == "sync") {
+        pages_blocks_sync <- purrr::map(pages_sync, ~.x$blocks)
+        pages_blocks_coords <- purrr::map(pages_blocks_sync, get_vertices)
+        pages_blocks <- purrr::map(pages_blocks_coords, transpose_page)
+    } else {
+        pages_blocks_async <- output_async$pages$blocks
+        pages_blocks <- purrr::map(pages_blocks_async, ~.x$layout$boundingPoly$normalizedVertices)
+    }
+
+    for (i in seq_along(pages_blocks)) {
+        df_sub <- df[df$page == i, ]
+        count <- 1
+        for (j in pages_blocks[[i]]) {
+
+            # assign number to token rows that fall within the box
+            df_sub$block[df_sub$right > mean(c(j$x[1], j$x[4])) &
+                             df_sub$left < mean(c(j$x[2], j$x[3])) &
+                             df_sub$bottom > mean(c(j$y[1], j$y[2])) &
+                             df_sub$top < mean(c(j$y[3], j$y[4]))] <- count
+            count <- count + 1
+        }
+        df$block[df$page == i] <- df_sub$block
+    }
+
+    return(df)
+
+}
 
 #' Build block dataframe
 #'
@@ -156,89 +191,114 @@ build_token_df <- function(json) {
 #' Rows are blocks, in the order DAI proposes to read them. Columns
 #' are location variables such as page coordinates and page numbers.
 #'
-#' @param json filepath of a JSON file obtained using \code{dai_async()}
+#' @param type one of "sync" or "async" depending on
+#' the function used to process the original document.
+#' @param output either a HTTP response object (from `dai_sync()`) or
+#' the path to a JSON file (from `dai_async`).
 #' @return a block data frame
 #'
-#' @details The location variables are: page number, left boundary,
-#' right boundary, top boundary, and bottom boundary.
+#' @details The dataframe variables are: page number, block number,
+#' confidence score, left boundary, right boundary, top boundary,
+#' and bottom boundary.
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' block_df <- build_block_df("pdf_output.json")
+#' block_df <- build_block_df(type = "async", output = "pdf_output.json")
+#' resp <- dai_sync("file.pdf")
+#' block_df <- build_block_df(type = "sync", output = resp)
 #' }
 
-build_block_df <- function(json) {
+    build_block_df <- function(
+        type,
+        output
+    ) {
 
-  # check
-  if (!(is_json(json))){
-    stop("Input file not .json.")
+        # checks
+        if (!(length(type) == 1) || !(type %in% c("sync", "async", "sync-tab", "async-tab"))) {
+            stop("Invalid type parameter.")
+        }
+
+        if (!(inherits(output, "response") || is_json(output))) {
+            stop("Invalid output parameter.")
+        }
+
+        if (type == "sync") {
+
+            output_sync <- httr::content(output)
+
+            # extract a list with pagewise sets of block boundary boxes
+            pages_sync <- output_sync$document$pages
+            pages_blocks_sync <- purrr::map(pages_sync, ~.x$blocks)
+            pagewise_block_sets_sync <- purrr::map(pages_blocks_sync, get_vertices)
+            pagewise_block_sets_sync <- purrr::map(pagewise_block_sets_sync, transpose_page)
+
+            # get confidence scores as single vector
+            conf <- numeric()
+            for (i in pages_blocks_sync) {
+                for (j in i) {
+                    con <- j$layout$confidence
+                    conf <- c(conf, con)
+                }
+            }
+        }
+
+        else if (type == "async") {
+
+            output_async <- jsonlite::fromJSON(output)
+
+            if (!("pages" %in% names(output_async))) {
+                stop("JSON not in right format. Is it from DAI?")
+            }
+
+            if (!("text" %in% names(output_async))) {
+                stop("DAI found no blocks. Was the document blank?")
+            }
+
+            # extract a list with pagewise sets of block boundary boxes
+            pages_blocks_async <- output_async$pages$blocks
+            pagewise_block_sets_async <- purrr::map(pages_blocks_async, ~.x$layout$boundingPoly$normalizedVertices)
+
+            # get confidence scores as single vector
+            conf <- unlist(purrr::map(pages_blocks_async, ~.x$layout$confidence))
+
+        }
+
+        # get page numbers as single vector
+        page <- integer()
+        if (type == "sync") { pages_blocks <- pages_blocks_sync } else { pages_blocks <- pages_blocks_async }
+        for (i in seq_along(pages_blocks)) {
+            if (is.null(pages_blocks[[i]])) {
+                instances <- 0
+            } else {
+                if (type == "sync") { instances <- length(pages_blocks[[i]]) }
+                else { instances <- nrow(pages_blocks[[i]])
+                }
+            }
+            pg <- rep(i, each = instances)
+            page <- c(page, pg)
+        }
+
+        # get block numbers as single vector
+        if (type == "sync") { pagewise_block_coords <- pagewise_block_sets_sync } else { pagewise_block_coords <- pagewise_block_sets_async}
+        block <- integer()
+        for (i in pagewise_block_coords) {
+            b <- seq_along(i)
+            block <- c(block, b)
+        }
+
+        # get coordinates as single vectors
+        left <-  unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ min(.x$x))))
+        right <- unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ max(.x$x))))
+        top <- unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ min(.x$y))))
+        bottom <- unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ max(.x$y))))
+
+        # combine all vectors to dataframe
+        df <- data.frame(page, block, conf, left, right, top, bottom)
+
+        return(df)
+
     }
-
-  output_as_list <- jsonlite::fromJSON(json)
-
-  if (!("pages" %in% names(output_as_list))) {
-    stop("JSON not in right format. Is it from DAI?")
-    }
-
-  if (!("text" %in% names(output_as_list))) {
-    stop("DAI found no blocks. Was the document blank?")
-    }
-
-  # extract a list with pagewise sets of block boundary boxes
-  pages_blocks <- output_as_list$pages$blocks
-
-  pagewise_block_sets <- purrr::map(pages_blocks, ~.x$layout$boundingPoly$normalizedVertices)
-
-  # get block numbers
-
-  block <- list()
-
-  for (i in pagewise_block_sets) {
-
-    b <- 1:length(i)
-
-    block <- append(block, b)
-
-    }
-
-  block <- unlist(block)
-
-  # extract all boundaries
-  pagewise_block_coords <- purrr::map(pages_blocks, ~.x$layout$boundingPoly$normalizedVertices)
-
-  left <-  unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ min(.x$x))))
-
-  right <- unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ max(.x$x))))
-
-  top <- unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ min(.x$y))))
-
-  bottom <- unlist(purrr::map(pagewise_block_coords, ~ purrr::map(.x, ~ max(.x$y))))
-
-  # get page numbers
-  page <- list()
-
-  for (i in 1:length(pages_blocks)) {
-
-    if (is.null(pages_blocks[[i]])) {
-      instances <- 0
-      } else {
-      instances <- nrow(pages_blocks[[i]])
-      }
-
-    pg <- rep(i, each = instances)
-
-    page <- append(page, pg)
-
-    }
-
-  page <- unlist(page)
-
-  df <- data.frame(page, block, left, right, top, bottom)
-
-  return(df)
-
-  }
 
 #' Split a block bounding box
 #'
@@ -278,7 +338,7 @@ split_block <- function(block_df,
     stop("Input not a data frame.")
     }
 
-  if (!(identical(colnames(block_df), c("page", "block", "left", "right", "top", "bottom")))) {
+  if (!(identical(colnames(block_df), c("page", "block", "conf", "left", "right", "top", "bottom")))) {
     stop("Dataframe not recognized. Was it made with build_block_df?")
     }
 
@@ -332,8 +392,9 @@ split_block <- function(block_df,
     cut_loc <- old_block$left + cut
 
     new_block <- data.frame(
-      block = as.integer(max(old_page_df$block[old_page_df$page == page]) + 1),
       page = as.integer(page),
+      block = as.integer(max(old_page_df$block[old_page_df$page == page]) + 1),
+      conf = NA,
       left = cut_loc,
       right = old_block$right,
       top = old_block$top,
@@ -366,8 +427,9 @@ split_block <- function(block_df,
     cut_loc <- old_block$top + cut
 
     new_block <- data.frame(
-      block = as.integer(max(old_page_df$block[old_page_df$page == page]) + 1),
       page = as.integer(page),
+      block = as.integer(max(old_page_df$block[old_page_df$page == page]) + 1),
+      conf = NA,
       left = old_block$right,
       right = old_block$right,
       top = cut_loc,
@@ -425,19 +487,20 @@ reassign_tokens <- function(token_df,
                             ) {
 
   # checks
-  if (!(is.data.frame(token_df))){
+  if (!(is.data.frame(token_df))) {
     stop("token_df not a data frame.")
     }
 
-  if (!(identical(colnames(token_df), c("token", "start_ind", "end_ind", "left", "right", "top", "bottom", "page", "block")))) {
+  if (!(identical(colnames(token_df),
+                  c("token", "start_ind", "end_ind", "conf", "left", "right", "top", "bottom", "page", "block")))) {
     stop("Token dataframe not recognized. Was it made with build_token_df?")
     }
 
-  if (!(is.data.frame(block_df))){
+  if (!(is.data.frame(block_df))) {
     stop("block_df not a data frame.")
     }
 
-  if (!(identical(colnames(block_df), c("page", "block", "left", "right", "top", "bottom")))) {
+  if (!(identical(colnames(block_df), c("page", "block", "conf", "left", "right", "top", "bottom")))) {
     stop("Block dataframe not recognized. Was it made with build_block_df?")
     }
 
@@ -456,7 +519,7 @@ reassign_tokens <- function(token_df,
   new_token_df <- as.data.frame(matrix(ncol = length(colnames), nrow = 0, dimnames = list(NULL, colnames)))
 
   # loop over each page
-  for (i in 1:length(token_df_pages)) {
+  for (i in seq_along(token_df_pages)) {
 
     # short names for readability
     tokens <- token_df_pages[[i]]
@@ -466,7 +529,7 @@ reassign_tokens <- function(token_df,
     new_token_df_page <- as.data.frame(matrix(ncol = length(colnames), nrow = 0, dimnames = list(NULL, colnames)))
 
     # loop over each block
-    for (j in 1:nrow(blocks)) {
+    for (j in seq_len(nrow(blocks))) {
 
       tokens_in_block <- tokens[tokens$top >= blocks[j, ]$top &
                                   tokens$bottom <= blocks[j, ]$bottom &
@@ -479,7 +542,6 @@ reassign_tokens <- function(token_df,
         new_token_df_page <- rbind(new_token_df_page, tokens_in_block)
       }
     }
-
 
     new_token_df <- rbind(new_token_df, new_token_df_page)
 
@@ -521,7 +583,8 @@ reassign_tokens2 <- function(token_df,
     stop("token_df not a data frame.")
     }
 
-  if (!(identical(colnames(token_df), c("token", "start_ind", "end_ind", "left", "right", "top", "bottom", "page", "block")))) {
+  if (!(identical(colnames(token_df),
+                  c("token", "start_ind", "end_ind", "conf", "left", "right", "top", "bottom", "page", "block")))) {
     stop("Token dataframe not recognized. Was it made with build_token_df?")
     }
 
@@ -529,7 +592,7 @@ reassign_tokens2 <- function(token_df,
     stop("block input not a data frame.")
     }
 
-  if (!(identical(colnames(block), c("page", "block", "left", "right", "top", "bottom")))) {
+  if (!(identical(colnames(block), c("page", "block", "conf",  "left", "right", "top", "bottom")))) {
     stop("Block dataframe format not recognized.")
     }
 
@@ -537,7 +600,7 @@ reassign_tokens2 <- function(token_df,
     stop("Invalid page parameter.")
     }
 
-  if (page > max(token_df$page, na.rm = TRUE)){
+  if (page > max(token_df$page, na.rm = TRUE)) {
     stop("No such page number in this dataframe.")
     }
 
@@ -560,7 +623,7 @@ reassign_tokens2 <- function(token_df,
 
   # if last of several
       } else if (page > 1 && page == max(token_df$page)) {
-        preceeding <- token_df[token_df$page < page, ]
+        preceding <- token_df[token_df$page < page, ]
         new_token_df <- rbind(preceding, page_df)
 
   # if in middle
@@ -618,18 +681,19 @@ from_labelme <- function(json,
 
   width <- info[[7]]
 
-  left <- info[[3]][[2]][[1]][1,1] / width
+  left <- info[[3]][[2]][[1]][1, 1] / width
 
-  right <- info[[3]][[2]][[1]][2,1] / width
+  right <- info[[3]][[2]][[1]][2, 1] / width
 
-  top <- info[[3]][[2]][[1]][1,2] / height
+  top <- info[[3]][[2]][[1]][1, 2] / height
 
-  bottom <- info[[3]][[2]][[1]][2,2] / height
+  bottom <- info[[3]][[2]][[1]][2, 2] / height
 
   block <- info[[3]][[1]]
 
   blockdata <- data.frame(page = page,
                           block = as.numeric(block),
+                          conf = NA,
                           left = left,
                           right = right,
                           top = top,
@@ -639,3 +703,187 @@ from_labelme <- function(json,
   return(blockdata)
 
   }
+
+
+#' Inspect revised block bounding boxes
+#'
+#' @description Tool to visually check the order of block bounding boxes after
+#' manual processing (e.g. block reordering or splitting). Takes as its main
+#' input a token dataframe generated with \code{build_token_df()},
+#' \code{reassign_tokens()}, or \code{reassign_tokens2()}.
+#' The function plots the block bounding boxes onto images of the submitted
+#' document. Generates an annotated .png file for each page in the
+#' original document.
+#'
+#' @param json filepath of a JSON file obtained using \code{dai_async()}
+#' @param token_df a token data frame generated with \code{build_token_df()},
+#' \code{reassign_tokens()}, or \code{reassign_tokens2()}.
+#' @param dir path to the desired output directory.
+#' @return no return value, called for side effects
+#'
+#' @details Not vectorized, but documents can be multi-page.
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#' redraw_blocks("pdf_output.json", revised_token_df, dir = tempdir())
+#' }
+
+redraw_blocks <- function(json,
+                          token_df,
+                          dir = getwd()
+                          ) {
+  # checks
+  if (length(json) > 1) {
+    stop("Invalid json input. This function is not vectorised.")
+  }
+
+  if (!(is.character(json))) {
+    stop("Invalid json input.")
+  }
+
+  if (!(is_json(json))) {
+    stop("Input 'json' not .json.")
+  }
+
+  if (!(is.data.frame(token_df))) {
+    stop("token_df not a data frame.")
+  }
+
+  if (!(identical(colnames(token_df),
+                  c("token", "start_ind", "end_ind", "conf", "left", "right", "top", "bottom", "page", "block")))) {
+    stop("Token dataframe format not recognized.")
+  }
+
+  # parse the json
+  parsed <- jsonlite::fromJSON(json)
+
+  # create a list with pagewise sets of block boundary box coordinates
+  pages_blocks <- split(token_df, token_df$page)
+
+  pagewise_block_sets <- list()
+  for (i in seq_along(pages_blocks)) {
+    blocks <- split(pages_blocks[[i]], pages_blocks[[i]]$block)
+    block_coords <- list()
+    for (j in seq_along(blocks)) {
+      token_sub_df <- blocks[[j]]
+      left <- min(token_sub_df$left)
+      right <- max(token_sub_df$right)
+      top <- min(token_sub_df$top)
+      bottom <- max(token_sub_df$bottom)
+      x <- c(left, right, right, left)
+      y <- c(top, top, bottom, bottom)
+      coords <- list(data.frame(x, y))
+      block_coords <- append(block_coords, coords)
+    }
+    pagewise_block_sets <- append(pagewise_block_sets, list(block_coords))
+  }
+
+  # Get vector of base64-encoded images
+  page_imgs <- parsed$pages$image$content
+
+  # loop over the pagewise sets
+  for (i in seq_along(pagewise_block_sets)) {
+
+    # decode base64
+    path <- file.path(tempdir(), glue::glue("page{i}.jpg"))
+    outconn <- file(path, "wb")
+    base64enc::base64decode(page_imgs[i], outconn)
+    close(outconn)
+
+    # read image into magick
+    img_decoded <- magick::image_read(path)
+
+    # get image dimensions
+    info <- magick::image_info(img_decoded)
+
+    # prepare for plotting on image
+    canvas <- magick::image_draw(img_decoded)
+
+    # set counter for box number
+    counter <- 1
+
+    #loop over boxes on the page
+    for (box in pagewise_block_sets[[i]]) {
+
+      # transform from relative to absolute coordinates
+      box$x1 <- box$x * info$width
+
+      box$y1 <- box$y * info$height
+
+      # draw polygon
+      graphics::polygon(x = box$x1,
+                        y = box$y1,
+                        border = "red",
+                        lwd = 3
+      )
+
+      graphics::text(x = box$x1[1],
+                     y = box$y1[1],
+                     label = counter,
+                     cex = 4,
+                     col = "blue",
+                     family = "Liberation Sans"
+      )
+
+      counter <- counter + 1
+
+    }
+
+    # write annotated image to file
+
+    filename <- glue::glue("page{i}_blocks_revised.png")
+
+    dest <- file.path(dir, filename)
+
+    magick::image_write(canvas, format = "png", dest)
+
+    grDevices::dev.off()
+
+  }
+
+  pages <- length(pages_blocks)
+
+  message(glue::glue("Generated {pages} annotated image(s)."))
+
+}
+
+#' Get vertices
+#'
+#' @description Helper function for extracting coordinates from DAI reponse objects
+#'
+#' @param lst a list
+#'
+#' @noRd
+
+get_vertices <- function(lst) {
+    boxes <- purrr::map(lst, ~.x$layout$boundingPoly$normalizedVertices)
+    return(boxes)
+}
+
+#' Transpose blocks
+#'
+#' @description Helper function for converting coordinates from DAI reponse objects
+#'
+#' @param lst a list
+#'
+#' @noRd
+transpose_block <- function(lst) {
+    xs <- c(lst[[1]][["x"]], lst[[2]][["x"]], lst[[3]][["x"]], lst[[4]][["x"]])
+    ys <- c(lst[[1]][["y"]], lst[[2]][["y"]], lst[[3]][["y"]], lst[[4]][["y"]])
+    df <- data.frame(xs, ys)
+    return(df)
+}
+
+#' Transpose page
+#'
+#' @description Helper function for converting coordinates from DAI reponse objects
+#'
+#' @param x a list element in a response object converted with httr::content().
+#' 
+#' @noRd
+
+transpose_page <- function(x) {
+    blocks <- purrr::map(x, transpose_block)
+    return(blocks)
+}

@@ -7,9 +7,9 @@ opts_chunk$set(
 )
 
 ## ---- message=FALSE, eval=FALSE-----------------------------------------------
-#  dest_path <- file.path(tempdir(), "CIA_columns.pdf")
+#  setwd(tempdir())
 #  download.file("https://www.cia.gov/readingroom/docs/1968-03-08.pdf",
-#                destfile = dest_path,
+#                destfile = "CIA_columns.pdf",
 #                mode = "wb")
 
 ## ---- echo=FALSE, out.width = "50%"-------------------------------------------
@@ -24,7 +24,7 @@ suppressMessages(library(googleCloudStorageR))
 #  library(googleCloudStorageR)
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  resp <- gcs_upload(dest_path)
+#  resp <- gcs_upload("CIA_columns.pdf")
 #  resp <- dai_async("CIA_columns.pdf")
 
 ## ---- echo=FALSE, eval=FALSE--------------------------------------------------
@@ -43,11 +43,10 @@ suppressMessages(library(googleCloudStorageR))
 #  our_file <- "<job_number>/0/CIA_columns-0.json"
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  dest_path2 <- file.path(tempdir(), "CIA_columns.json")
-#  gcs_get_object(our_file, saveToDisk = dest_path2)
+#  gcs_get_object(our_file, saveToDisk = "CIA_columns.json")
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  text <- text_from_dai_file(dest_path2)
+#  text <- text_from_dai_file("CIA_columns.json")
 #  cat(text)
 
 ## ---- eval=FALSE--------------------------------------------------------------
@@ -78,11 +77,10 @@ include_graphics("CIA_columns1_blocks.png")
 include_graphics("peshtigo.jpg")
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  dest_path3 <- file.path(tempdir(), "peshtigo.pdf")
 #  download.file("https://archive.org/download/themarinetteandpeshtigoeagleoct141871/The%20Marinette%20and%20Peshtigo%20Eagle%20-%20Oct%2014%201871.pdf",
-#                destfile = dest_path3,
+#                destfile = "peshtigo.pdf",
 #                mode = "wb")
-#  resp <- gcs_upload(dest_path3)
+#  resp <- gcs_upload("peshtigo.pdf")
 #  resp <- dai_async("peshtigo.pdf")
 
 ## ---- eval=FALSE--------------------------------------------------------------
@@ -93,18 +91,16 @@ include_graphics("peshtigo.jpg")
 #  our_file <- "<job_number>/0/peshtigo-0.json"
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  dest_path4 <- file.path(tempdir(), "peshtigo.json")
-#  gcs_get_object(our_file,
-#                 saveToDisk = dest_path4)
+#  gcs_get_object(our_file, saveToDisk = "peshtigo.json")
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  draw_blocks(dest_path4, dir = tempdir())
+#  draw_blocks("peshtigo.json", dir = tempdir())
 
 ## ---- echo=FALSE, out.width = "50%"-------------------------------------------
 include_graphics("peshtigo1_blocks.png")
 
 ## ---- eval=FALSE--------------------------------------------------------------
-#  text <- text_from_dai_file(dest_path4)
+#  text <- text_from_dai_file("peshtigo.json")
 #  snippet <- substr(text, start = 1, stop = 1000)
 #  cat(snippet)
 

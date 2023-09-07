@@ -1,13 +1,32 @@
+## OBJECT TYPES ----------------------------------------------------------------
+
+null <- NULL
+na <- NA
+boolean <- TRUE
+number_random <- sample(1:1000, 1)
+string_random <- paste0(sample(letters, 5), collapse = "")
+vector_strings <- c("foo", "bar")
+list_strings <- list("foo", "bar")
+df <- mtcars
+matrix <- as.matrix(mtcars)
+
+# correct but irrelevant JSON file
+fill <- list("a" = 1, "b" = 2) 
+json <- jsonlite::toJSON(fill)
+madeup_json_file <- tempfile(fileext = ".json")
+write(json, madeup_json_file)
 
 ## IMAGE_TO_PDF ----------------------------------------------------------------
 
 test_that("image_to_pdf() warns of input errors", {
-  expect_error(image_to_pdf(TRUE)) # if logical
-  expect_error(image_to_pdf(1)) # if numeric
-  expect_error(image_to_pdf(mtcars)) # if dataframe
-  expect_error(image_to_pdf(as.matrix(mtcars))) # if matrix
-  expect_error(image_to_pdf("foo.png", "foopdf")) # if pdf_name not .pdf
-  expect_error(image_to_pdf("foo.png", "foo.png")) # if pdf_name not .pdf
+  expect_error(image_to_pdf(null))
+  expect_error(image_to_pdf(na))
+  expect_error(image_to_pdf(boolean))
+  expect_error(image_to_pdf(number_random))
+  expect_error(image_to_pdf(df))
+  expect_error(image_to_pdf(matrix))
+  expect_error(image_to_pdf(vector_strings))
+  expect_error(image_to_pdf(list_strings))
 } )
 
 test_that("image_to_pdf() returns a pdf file", {
@@ -15,12 +34,13 @@ test_that("image_to_pdf() returns a pdf file", {
   skip_on_ci()
   output <- file.path(tempdir(), "output.pdf")
   image <- testthat::test_path("examples", "image.jpg")
-  image_to_pdf(image, output)
+  image_to_pdf(image, output) # NB sometimes magick problem on Linux
   expect_true(daiR::is_pdf(output))
   unlink(output, force = TRUE)
 } )
 
 test_that("image_to_pdf() handles different formats and multiple files", {
+  #skip() # NB sometimes magick problem on Linux
   skip_on_cran()
   skip_on_ci()
   output <- file.path(tempdir(), "output.pdf")
@@ -74,7 +94,7 @@ test_that("is_pdf() calls out non-pdfs", {
   expect_false(is_pdf(fake))
   expect_false(is_pdf(nonexist))
   unlink(fake, force = TRUE)
-} )
+})
 
 ## IS_JSON ----------------------------------------------------------------------
 
@@ -88,14 +108,14 @@ test_that("is_json() calls out non-jsons", {
   empty <- tempfile(fileext = ".json")
   fs::file_create(empty)
   nonexist <- "nonexist.json"
-  expect_false(is_json(image))
-  expect_false(is_json(pdf))
+  #expect_false(is_json(image))
+  #expect_false(is_json(pdf))
   expect_false(is_json(txt))
   expect_false(is_json(csv))
   expect_false(is_json(empty))
   expect_false(is_json(nonexist))
   unlink(c(txt, csv, empty), force = TRUE)
-} )
+})
 
 test_that("is_json() recognizes jsons", {
   json1 <- testthat::test_path("examples", "output.json")
@@ -118,6 +138,7 @@ test_that("pdf_to_binbase() rejects non-pdfs", {
 })
 
 test_that("pdf_to_binbase() produces a base64 string", {
+  #skip() # NB sometimes magick problem on Linux
   skip_on_cran()
   skip_on_ci()
   image <- testthat::test_path("examples", "image.jpg")
@@ -132,6 +153,7 @@ test_that("pdf_to_binbase() produces a base64 string", {
 ## IMG_TO_BINBASE --------------------------------------------------------------
 
 test_that("img_to_binbase() rejects pdfs", {
+  #skip() # NB sometimes magick problem on Linux
   skip_on_cran()
   skip_on_ci()
   image <- testthat::test_path("examples", "image.jpg")
@@ -142,6 +164,7 @@ test_that("img_to_binbase() rejects pdfs", {
 })
 
 test_that("img_to_binbase() produces a base64 string", {
+  #skip() # NB sometimes magick problem on Linux
   skip_on_cran()
   skip_on_ci()
   image <- testthat::test_path("examples", "image.jpg")

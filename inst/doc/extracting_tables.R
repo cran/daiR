@@ -11,12 +11,12 @@ include_graphics("tobacco.PNG")
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  library(daiR)
-#  dest_path <- file.path(tempdir(), "tobacco.pdf")
+#  setwd(tempdir())
 #  download.file("https://archive.org/download/tobacco_lpnn0000/lpnn0000.pdf",
-#                destfile = dest_path,
+#                destfile = "tobacco.pdf",
 #                mode = "wb")
 #  
-#  resp <- dai_sync_tab(dest_path)
+#  resp <- dai_sync_tab("tobacco.pdf")
 
 ## ---- eval=FALSE--------------------------------------------------------------
 #  tables <- tables_from_dai_response(resp)

@@ -4,10 +4,11 @@
 #' @param libname name of library
 #' @param pkgname name of package
 #' @return no return value, called for side effects
+#' @export
 
 .onAttach <- function(libname, pkgname) {
 
-  packageStartupMessage("Welcome to daiR 0.9.9, your gateway to Google Document AI v1.")
+  packageStartupMessage(glue::glue("Welcome to daiR {utils::packageVersion('daiR')}, your gateway to Google Document AI v1."))
 
   dai_auth()
 

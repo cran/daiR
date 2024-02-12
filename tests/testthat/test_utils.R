@@ -128,6 +128,10 @@ test_that("is_json() recognizes jsons", {
   expect_true(is_json(json4))
 } )
 
+## IS_COLOUR ----------------------------------------
+
+# TBD
+
 ## PDF_TO_BINBASE --------------------------------------------------------------
 
 test_that("pdf_to_binbase() rejects non-pdfs", {

@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 options(rmarkdown.html_vignette.check_title = FALSE)
 library(knitr)
 opts_chunk$set(
@@ -6,142 +6,119 @@ opts_chunk$set(
   comment = "#>"
 )
 
-## ---- message=FALSE, eval=FALSE-----------------------------------------------
+## ----message=FALSE, eval=FALSE------------------------------------------------
 #  setwd(tempdir())
-#  download.file("https://www.cia.gov/readingroom/docs/1968-03-08.pdf",
-#                destfile = "CIA_columns.pdf",
-#                mode = "wb")
+#  url <- "https://www.cia.gov/readingroom/docs/1968-03-08.pdf"
+#  download.file(url, "CIA_columns.pdf")
 
-## ---- echo=FALSE, out.width = "50%"-------------------------------------------
+## ----echo=FALSE, out.width = "50%"--------------------------------------------
 include_graphics("CIA_columns.jpg")
 
-## ---- echo=FALSE--------------------------------------------------------------
-library(daiR)
-suppressMessages(library(googleCloudStorageR))
-
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  library(daiR)
 #  library(googleCloudStorageR)
-
-## ---- eval=FALSE--------------------------------------------------------------
-#  resp <- gcs_upload("CIA_columns.pdf")
+#  gcs_upload("CIA_columns.pdf")
 #  resp <- dai_async("CIA_columns.pdf")
+#  dai_notify(resp)
 
-## ---- echo=FALSE, eval=FALSE--------------------------------------------------
-#  content <- gcs_list_objects()
-#  count <- 0
-#  while (count < 150 && nrow(content) < 2){
-#    Sys.sleep(2)
-#    content <- gcs_list_objects()
-#    count <- count + 1
-#  }
+## ----echo=FALSE, eval=FALSE---------------------------------------------------
+#  contents <- gcs_list_objects()
+#  our_json <- grep("CIA_columns.*json", contents$name, value = TRUE)
+#  gcs_get_object(our_json, saveToDisk = "CIA_columns.json")
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  gcs_list_objects()
-#  
-#  ## NOT RUN
-#  our_file <- "<job_number>/0/CIA_columns-0.json"
-
-## ---- eval=FALSE--------------------------------------------------------------
-#  gcs_get_object(our_file, saveToDisk = "CIA_columns.json")
-
-## ---- eval=FALSE--------------------------------------------------------------
-#  text <- text_from_dai_file("CIA_columns.json")
+## ----eval=FALSE---------------------------------------------------------------
+#  text <- get_text("CIA_columns.json", type = "async")
 #  cat(text)
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  draw_blocks(dest_path2, dir = tempdir())
+## ----eval=FALSE---------------------------------------------------------------
+#  draw_blocks("CIA_columns.json", type = "async")
 
-## ---- echo=FALSE, out.width = "50%"-------------------------------------------
+## ----echo=FALSE, out.width = "50%"--------------------------------------------
 include_graphics("CIA_columns1_blocks.png")
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  token_df <- build_token_df(dest_path2)
+## ----eval=FALSE---------------------------------------------------------------
+#  token_df <- build_token_df("CIA_columns.json")
 #  str(token_df)
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  order <- c(1, 2, 3, 5, 7, 4, 6)
 #  token_df$block <- factor(token_df$block, levels = order)
 #  token_df_correct <- token_df[order(token_df$block),]
 
-## ---- message = FALSE, warning = FALSE, eval=FALSE----------------------------
+## ----message = FALSE, warning = FALSE, eval=FALSE-----------------------------
 #  library(dplyr)
 #  text <- token_df_correct$token %>%
-#    paste(collapse="")
+#    paste(collapse = "")
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  snippet <- substr(text, start = 1, stop = 700)
 #  cat(snippet)
 
-## ---- echo=FALSE, out.width = "50%"-------------------------------------------
+## ----echo=FALSE, out.width = "50%"--------------------------------------------
 include_graphics("peshtigo.jpg")
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  download.file("https://archive.org/download/themarinetteandpeshtigoeagleoct141871/The%20Marinette%20and%20Peshtigo%20Eagle%20-%20Oct%2014%201871.pdf",
-#                destfile = "peshtigo.pdf",
-#                mode = "wb")
-#  resp <- gcs_upload("peshtigo.pdf")
+## ----eval=FALSE---------------------------------------------------------------
+#  url <- "https://archive.org/download/themarinetteandpeshtigoeagleoct141871/The%20Marinette%20and%20Peshtigo%20Eagle%20-%20Oct%2014%201871.pdf"
+#  download.file(url, "peshtigo.pdf")
+#  gcs_upload("peshtigo.pdf")
 #  resp <- dai_async("peshtigo.pdf")
-
-## ---- eval=FALSE--------------------------------------------------------------
-#  # wait till ready
-#  gcs_list_objects()
+#  dai_notify(resp)
 #  
-#  ## NOT RUN
-#  our_file <- "<job_number>/0/peshtigo-0.json"
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  gcs_get_object(our_file, saveToDisk = "peshtigo.json")
+## ----eval=FALSE---------------------------------------------------------------
+#  contents <- gcs_list_objects()
+#  our_json <- grep("peshtigo.*json", contents$name, value = TRUE)
+#  gcs_get_object(our_json, saveToDisk = "peshtigo.json")
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  draw_blocks("peshtigo.json", dir = tempdir())
+## ----eval=FALSE---------------------------------------------------------------
+#  draw_blocks("peshtigo.json", type = "async")
 
-## ---- echo=FALSE, out.width = "50%"-------------------------------------------
+## ----echo=FALSE, out.width = "50%"--------------------------------------------
 include_graphics("peshtigo1_blocks.png")
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  text <- text_from_dai_file("peshtigo.json")
 #  snippet <- substr(text, start = 1, stop = 1000)
 #  cat(snippet)
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  block_df <- build_block_df(dest_path4)
+## ----eval=FALSE---------------------------------------------------------------
+#  block_df <- build_block_df("peshtigo.json")
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  new_block_df <- split_block(block_df, block = 12, cut_point = 50)
 
-## ---- eval=FALSE--------------------------------------------------------------
-#  token_df <- build_token_df(dest_path4)
+## ----eval=FALSE---------------------------------------------------------------
+#  token_df <- build_token_df("peshtigo.json")
 #  token_df_correct <- reassign_tokens(token_df, new_block_df)
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  text <- token_df_correct$token %>%
-#    paste(collapse="")
+#    paste(collapse = "")
 #  snippet <- substr(text, start = 1, stop = 1000)
 #  cat(snippet)
 
-## ---- echo=FALSE, out.width = "50%"-------------------------------------------
+## ----echo=FALSE, out.width = "50%"--------------------------------------------
 include_graphics("labelme1.png")
 
-## ---- echo=FALSE, out.width = "50%"-------------------------------------------
+## ----echo=FALSE, out.width = "50%"--------------------------------------------
 include_graphics("labelme2.png")
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  block13 <- from_labelme("peshtigo1_blocks.json")
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  token_df_new <- reassign_tokens2(token_df, block13)
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  token_df_correct <- token_df_new[order(token_df_new$block), ]
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  text <- token_df_correct$token %>%
-#    paste(collapse="")
+#    paste(collapse = "")
 #  snippet <- substr(text, start = 1, stop = 1000)
 #  cat(snippet)
 
-## ---- echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE--------------------
+## ----echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE---------------------
 #  #cleanup
 #  contents <- gcs_list_objects()
 #  map(contents$name, gcs_delete_object)

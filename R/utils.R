@@ -41,7 +41,7 @@ image_to_pdf <- function(files, pdf_name) {
                       format = "pdf",
                       pdf_name
                       )
-  }
+}
 
 #' Check that a file is PDF
 #'
@@ -101,7 +101,7 @@ is_colour <- function(x) {
 
   return(!(inherits(result, "try-error")))
 
- }
+}
 
 #' PDF to base64 tiff
 #'
@@ -132,7 +132,7 @@ pdf_to_binbase <- function(file) {
 
   return(enc)
 
-  }
+}
 
 #' Image to base64 tiff
 #'
@@ -142,7 +142,7 @@ pdf_to_binbase <- function(file) {
 #' @export
 #' @examples
 #' \dontrun{
-#' img_encoded <- pdf_to_binbase("image.png")
+#' img_encoded <- img_to_binbase("image.png")
 #' }
 
 img_to_binbase <- function(file) {
@@ -160,11 +160,11 @@ img_to_binbase <- function(file) {
   magick::image_write(img_gray, 
                       filepath, 
                       format = "tiff", 
-                      #compression = "JPEG"
+                      compression = "JPEG"
                       )
 
   enc <- base64enc::base64encode(filepath)
 
   return(enc)
 
-  }
+}

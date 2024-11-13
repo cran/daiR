@@ -1,6 +1,6 @@
 Package: daiR
 Title: Interface with Google Cloud Document AI API
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: 
     person("Thomas", "Hegghammer", , "hegghammer@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6253-1518"))
@@ -24,10 +24,10 @@ Suggests: knitr, ngram, rmarkdown, testthat (>= 3.1.10)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 NeedsCompilation: no
-Packaged: 2024-02-12 01:08:35 UTC; thomas
+Packaged: 2024-11-13 09:36:44 UTC; thomas
 Author: Thomas Hegghammer [aut, cre] (<https://orcid.org/0000-0001-6253-1518>)
 Maintainer: Thomas Hegghammer <hegghammer@gmail.com>
 Repository: CRAN
-Date/Publication: 2024-02-12 04:20:02 UTC
+Date/Publication: 2024-11-13 09:50:01 UTC

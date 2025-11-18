@@ -49,8 +49,9 @@ overflow: visible;
 }
 </style>
 <style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -61,7 +62,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -375,7 +376,7 @@ in a variable like so:</p>
 form parser processor, and you must create one. This is very easy to do.
 Just run the following command, adding a unique name for your
 processor.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>formparser_id <span class="ot">&lt;-</span> <span class="fu">create_processor</span>(<span class="st">&quot;&lt;unique_chosen_name&gt;&quot;</span>, <span class="at">type =</span> <span class="st">&quot;FORM_PARSER_PROCESSOR&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>formparser_id <span class="ot">&lt;-</span> <span class="fu">create_processor</span>(<span class="st">&quot;&lt;unique_display_name&gt;&quot;</span>, <span class="at">type =</span> <span class="st">&quot;FORM_PARSER_PROCESSOR&quot;</span>)</span></code></pre></div>
 <p>If the processor name has been taken, you will get an error to this
 effect. If so, just retry with another name. When successful,
 <code>create_processor()</code> returns the id of the created processor,

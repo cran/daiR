@@ -27,12 +27,12 @@ include_graphics("storage5.PNG")
 include_graphics("storage6.PNG")
 
 ## ----message=FALSE, eval=FALSE------------------------------------------------
-#  usethis::edit_r_environ()
+# usethis::edit_r_environ()
 
 ## ----eval = FALSE-------------------------------------------------------------
-#  library(daiR)
+# library(daiR)
 
 ## ----eval = FALSE-------------------------------------------------------------
-#  ## NOT RUN
-#  id <- create_processor("<my-unique-processor-name>")
+# ## NOT RUN
+# id <- create_processor("<my-unique-processor-name>")
 
